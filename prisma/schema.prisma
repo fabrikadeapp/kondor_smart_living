@@ -155,6 +155,7 @@ model Contract {
   marketplaceOrders     MarketplaceOrder[]
   employees             Employee[]
   notifications         Notification[]
+  muralPosts            MuralPost[]
   surveys               SatisfactionSurvey[]
   fines                 FineWarning[]
   timeSheetEntries      TimeSheetEntry[]
@@ -657,9 +658,24 @@ model Employee {
   timeSheetEntries TimeSheetEntry[]
 }
 
+
 // ============================================================================
-// COMMUNICATION & NOTIFICATIONS (TASK 1.6)
+// COMMUNICATION & MURAL
 // ============================================================================
+
+model MuralPost {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  title          String
+  content        String
+  category       String         // AVISO, EVENTO, MANUTENCAO, REUNIAO
+  priority       String         @default("NORMAL") // NORMAL, HIGH
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+}
 
 model Notification {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

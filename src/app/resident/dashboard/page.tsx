@@ -1,6 +1,7 @@
 import { requireTenantContext } from "@/core/tenant/tenant-context"
 import { Card, CardContent } from "@/components/ui/card"
-import { Package } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Package, Megaphone, Bell } from "lucide-react"
 import prisma from "@/infrastructure/db/prisma"
 import Link from "next/link"
 
@@ -29,6 +30,12 @@ export default async function ResidentDashboardPage() {
         }
     })
 
+    const activeMuralPosts = await prisma.muralPost.findMany({
+        where: { contractId, isActive: true },
+        orderBy: { createdAt: "desc" },
+        take: 3
+    })
+
     return (
         <div className="p-4 space-y-4">
             <div className="pt-2 pb-4 border-b">
@@ -55,6 +62,44 @@ export default async function ResidentDashboardPage() {
                     </div>
                 </Link>
             )}
+
+            {/* Mural de Avisos Feed */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                    <h3 className="font-semibold text-slate-700 text-[10px] uppercase tracking-widest flex items-center gap-2">
+                        <Megaphone className="w-3 h-3 text-[#0066cc]" /> Mural do Condomínio
+                    </h3>
+                </div>
+                {activeMuralPosts.length === 0 ? (
+                    <Card className="border-dashed border-2 bg-slate-50/50">
+                        <CardContent className="p-6 text-center text-[11px] text-[#86868b] font-medium">
+                            Nenhum aviso novo no momento.
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="flex flex-col gap-3">
+                        {activeMuralPosts.map((post: any) => (
+                            <Card key={post.id} className={`overflow-hidden border-0 shadow-sm relative ${post.priority === 'HIGH' ? 'bg-rose-50' : 'bg-white'}`}>
+                                {post.priority === 'HIGH' && (
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
+                                )}
+                                <CardContent className="p-4 space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <Badge className="bg-white/80 backdrop-blur text-[8px] font-black tracking-widest uppercase py-0.5 px-2 rounded-full border-[#d2d2d7]">
+                                            {post.category}
+                                        </Badge>
+                                        <span className="text-[9px] font-bold text-[#86868b]">
+                                            {new Date(post.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                        </span>
+                                    </div>
+                                    <h4 className="text-sm font-black text-[#1d1d1f] leading-tight tracking-tight">{post.title}</h4>
+                                    <p className="text-[11px] text-[#86868b] font-medium leading-snug line-clamp-2">{post.content}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             <div className="space-y-4">
                 <h3 className="font-semibold text-slate-700 text-sm uppercase px-1">Tipos de Acesso</h3>
