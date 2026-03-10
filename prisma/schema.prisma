@@ -176,6 +176,7 @@ model User {
   userUnits             UserUnit[]
   specialistPermissions SpecialistPermission[]
   notifications         Notification[]
+  occurrences           Occurrence[]
 }
 
 model Membership {
@@ -436,6 +437,7 @@ model Occurrence {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   contractId     String           @db.Uuid
   unitId         String?          @db.Uuid
+  userId         String?          @db.Uuid
   category       String
   priority       String
   description    String
@@ -445,6 +447,7 @@ model Occurrence {
 
   contract       Contract         @relation(fields: [contractId], references: [id])
   unit           Unit?            @relation(fields: [unitId], references: [id])
+  user           User?            @relation(fields: [userId], references: [id])
   survey         SatisfactionSurvey? @relation("OccurrenceSurvey")
 }
 
