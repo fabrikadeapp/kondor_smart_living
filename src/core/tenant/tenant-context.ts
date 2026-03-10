@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/core/auth/authOptions"
+import prisma from "@/infrastructure/db/prisma"
 
 /**
+
  * Helper de Backend para garantir o "Hard Boundary" Multi-Tenant.
  * Invocar sempre no inicio de um Server Action ou Server Component
  * que consulte dados do banco (Prisma).
@@ -63,5 +65,67 @@ export async function requireGlobalContext() {
     return {
         user: session.user,
         isSuperAdmin: true,
+    }
+}
+/**
+ * Verifica se o condomínio atual (Contract) tem acesso a uma funcionalidade
+ * específica baseada no seu Plano (Subscription) ou Ad-Ons ativos.
+ * 
+ * @param {string} code O código curto da feature (Ex: STAFF_TIME_CLOCK)
+ * @returns {Promise<boolean>}
+ */
+export async function checkFeatureAccess(code: string): Promise<boolean> {
+    const { contractId } = await requireTenantContext()
+
+    // 1. Verificar no Plano (Subscription -> Plan -> Features)
+    const planAccess = await prisma.contract.findUnique({
+        where: { id: contractId },
+        include: {
+            subscription: {
+                include: {
+                    plan: {
+                        include: {
+                            planFeatures: {
+                                include: { feature: { select: { code: true } } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+
+    const hasInPlan = planAccess?.subscription?.plan.planFeatures.some(
+        (pf: any) => pf.feature.code === code
+    )
+
+
+    if (hasInPlan) return true
+
+    // 2. Verificar nos Add-Ons (TenantAddOn -> AddOn -> Features)
+    const addOnAccess = await prisma.tenantAddOn.findFirst({
+        where: {
+            contractId,
+            status: "ACTIVE",
+            addOn: {
+                features: {
+                    some: {
+                        feature: { code }
+                    }
+                }
+            }
+        }
+    })
+
+    return !!addOnAccess
+}
+
+/**
+ * Lança erro se a feature não estiver ativada no Plano do cliente.
+ */
+export async function requireFeature(code: string) {
+    const hasAccess = await checkFeatureAccess(code)
+    if (!hasAccess) {
+        throw new Error(`Acesso Negado: A funcionalidade '${code}' não está inclusa no seu plano atual. Ative agora para continuar.`)
     }
 }

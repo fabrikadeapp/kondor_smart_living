@@ -3,19 +3,24 @@ import prisma from "@/infrastructure/db/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Users, UserPlus, CreditCard, ShieldCheck } from "lucide-react"
+import { Users, UserPlus, CreditCard, ShieldCheck, Clock } from "lucide-react"
 import { executePayrollAction } from "@/application/features/staff/staff.action"
+import { clockEntryAction } from "@/application/features/staff/timesheet.action"
+import { checkFeatureAccess } from "@/core/tenant/tenant-context"
 
 export default async function AdminStaffPage() {
     const { contractId } = await requireTenantContext()
+    const hasTimeClock = await checkFeatureAccess("STAFF_TIME_CLOCK")
 
     // Buscar todos os funcionários do condomínio
-    const employees = await prisma.employee.findMany({
+    const employees = await (prisma as any).employee.findMany({
         where: { contractId },
+
         orderBy: { createdAt: "desc" }
     })
 
-    const totalPayroll = employees.reduce((acc, curr) => acc + Number(curr.salary), 0)
+    const totalPayroll = employees.reduce((acc: any, curr: any) => acc + Number(curr.salary), 0)
+
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
@@ -63,7 +68,8 @@ export default async function AdminStaffPage() {
                         <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                         <p className="text-slate-500 font-medium">Nenhum colaborador cadastrado ainda.</p>
                     </div>
-                ) : employees.map((employee) => (
+                ) : employees.map((employee: any) => (
+
                     <Card key={employee.id} className="border-slate-100 hover:shadow-md transition-all">
                         <CardHeader className="pb-3">
                             <div className="flex justify-between items-start">
@@ -87,10 +93,20 @@ export default async function AdminStaffPage() {
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="p-3 bg-slate-50">
-                            <Button variant="secondary" className="w-full text-xs font-bold h-9">
-                                Ver Histórico
+                        <CardFooter className="p-3 bg-slate-50 gap-2">
+                            <Button variant="secondary" className="flex-1 text-[10px] font-bold h-9">
+                                Histórico
                             </Button>
+                            {hasTimeClock && (
+                                <form action={async () => {
+                                    "use server"
+                                    await clockEntryAction(employee.id, "Recepção Central")
+                                }}>
+                                    <Button type="submit" variant="outline" className="flex-1 text-[10px] font-bold h-9 border-primary/20 text-primary hover:bg-primary/5">
+                                        <Clock className="w-3 h-3 mr-1" /> Ponto
+                                    </Button>
+                                </form>
+                            )}
                         </CardFooter>
                     </Card>
                 ))}

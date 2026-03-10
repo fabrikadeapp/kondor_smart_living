@@ -153,6 +153,8 @@ model Contract {
   employees             Employee[]
   notifications         Notification[]
   surveys               SatisfactionSurvey[]
+  fines                 FineWarning[]
+  timeSheetEntries      TimeSheetEntry[]
 }
 
 
@@ -212,6 +214,7 @@ model Unit {
   marketplaceOrders MarketplaceOrder[]
   assemblyVotes   AssemblyVote[]
   notifications   Notification[]
+  fines           FineWarning[]
 }
 
 
@@ -453,6 +456,42 @@ model SatisfactionSurvey {
   occurrence     Occurrence     @relation("OccurrenceSurvey", fields: [occurrenceId], references: [id], onDelete: Cascade)
 }
 
+// ============================================================================
+// FINES & WARNINGS (TASK 4.8)
+// ============================================================================
+
+model FineWarning {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  unitId         String         @db.Uuid
+  type           String         // FINE, WARNING
+  reason         String
+  amount         Decimal?       @db.Decimal(10, 2) // Only for FINE
+  status         String         @default("PENDING") // PENDING, PAID, CANCELLED
+  issuedAt       DateTime       @default(now())
+  evidenceUrl    String?
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+  unit           Unit           @relation(fields: [unitId], references: [id])
+}
+
+// ============================================================================
+// HR & TIME CLOCK (TASK 4.9)
+// ============================================================================
+
+model TimeSheetEntry {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId     String         @db.Uuid
+  contractId     String         @db.Uuid
+  clockIn        DateTime       @default(now())
+  clockOut       DateTime?
+  location       String?        // Lat/Long ou Nome do Local
+  
+  employee       Employee       @relation(fields: [employeeId], references: [id])
+  contract       Contract       @relation(fields: [contractId], references: [id])
+}
+
+
 
 model Delivery {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -607,6 +646,7 @@ model Employee {
   updatedAt      DateTime       @updatedAt
 
   contract       Contract       @relation(fields: [contractId], references: [id])
+  timeSheetEntries TimeSheetEntry[]
 }
 
 // ============================================================================

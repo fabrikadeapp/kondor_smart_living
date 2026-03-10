@@ -44,6 +44,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <Link href="/admin/reports/transparency" className="block font-medium p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded transition-colors">
                         Transparência Financeira
                     </Link>
+                    <Link href="/admin/reports/csat" className="block font-medium p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded transition-colors">
+                        Satisfação & BI (CSAT)
+                    </Link>
                     <Link href="/admin/assemblies" className="block font-medium p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded transition-colors">
                         Governança & Assembleias
                     </Link>
