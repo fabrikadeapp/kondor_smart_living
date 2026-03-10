@@ -3,22 +3,22 @@ import { PrismaClient, Role, ContractStatus } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Seeding database...')
+  console.log('Seeding database - Condo Lab Master Setup...')
 
-  // 1. Cria Firt Super Admin
+  // 1. First Super Admin
   const superAdmin = await prisma.user.upsert({
     where: { email: 'admin@kondorsmartliving.com' },
     update: {},
     create: {
       email: 'admin@kondorsmartliving.com',
       name: 'Global Administrator',
-      passwordHash: '$2b$10$YourHashedPasswordHere', // Use bcrypt!
+      passwordHash: '$2b$10$YourHashedPasswordHere',
       is2FAEnabled: false,
     },
   })
 
-  // 2. Features
-  console.log('Creating base features...')
+  // 2. Features mapping
+  console.log('Creating base features for Condo Lab...')
   const baseFeatures = [
     { code: 'DASHBOARD_BASIC', name: 'Dashboard Básico' },
     { code: 'UNIT_MANAGEMENT', name: 'Gestão de Unidades' },
@@ -29,125 +29,102 @@ async function main() {
     { code: 'VOTING', name: 'Votações Virtuais' },
     { code: 'REPORTS_ADVANCED', name: 'Relatórios Avançados' },
     { code: 'MARKETPLACE', name: 'Marketplace Transacional' },
+    { code: 'NOTIFICATIONS_WHATSAPP', name: 'Notificações WhatsApp/Push' },
+    { code: 'FINES_AND_WARNINGS', name: 'Multas e Advertências Digitais' },
+    { code: 'STAFF_TIME_CLOCK', name: 'Ponto Digital (Staff/RH)' },
+    { code: 'CSAT_ANALYTICS', name: 'BI: Satisfação & CSAT' },
   ]
-  const createdFeatures = await Promise.all(
-    baseFeatures.map(f => prisma.feature.upsert({
-      where: { code: f.code },
-      update: {},
-      create: f
-    }))
-  )
-  const [fDash, fUnits, fRes, fOccurrences, fFin, fAss, fVoting, fRep, fMkt] = createdFeatures
 
-  // 3. Planos Base
-  console.log('Creating base plans...')
-  const planEssencial = await prisma.plan.create({
-    data: {
-      name: 'Essencial',
+  const featureMap: Record<string, string> = {}
+  for (const f of baseFeatures) {
+    const created = await prisma.feature.upsert({
+      where: { code: f.code },
+      update: { name: f.name },
+      create: f
+    })
+    featureMap[f.code] = created.id
+  }
+
+  // 3. Planos: Bronze, Silver, Gold
+  console.log('Creating Kondo Plans (Bronze, Silver, Gold)...')
+
+  // BRONZE - Essencial
+  await prisma.plan.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000001' }, // Hardcoded ID for seed consistency
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000001',
+      name: 'Bronze (Essencial/Trial)',
       basePrice: 199.00,
       billingCycle: 'MONTHLY',
-      badge: '',
-      hasTrial: true,
+      badge: 'Novato',
       displayOrder: 1,
       planFeatures: {
         create: [
-          { featureId: fDash.id },
-          { featureId: fUnits.id },
-          { featureId: fRes.id },
-          { featureId: fOccurrences.id },
-          { featureId: fFin.id },
+          { featureId: featureMap['DASHBOARD_BASIC'] },
+          { featureId: featureMap['UNIT_MANAGEMENT'] },
+          { featureId: featureMap['RESIDENT_MANAGEMENT'] },
+          { featureId: featureMap['OCCURRENCES'] },
+          { featureId: featureMap['FINANCE_OPERATIONAL'] },
         ]
       },
       unitTiers: {
-        create: [
-          { minUnits: 0, maxUnits: 100, pricePerUnit: 2.00, flatPrice: 0 }
-        ]
+        create: [{ minUnits: 0, maxUnits: 50, pricePerUnit: 2.00, flatPrice: 0 }]
       }
     }
   })
 
-  const planProfissional = await prisma.plan.create({
-    data: {
-      name: 'Profissional',
-      basePrice: 399.00,
+  // SILVER - Profissional
+  await prisma.plan.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000002' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000002',
+      name: 'Silver (Profissional)',
+      basePrice: 499.00,
       billingCycle: 'MONTHLY',
-      badge: 'Mais Escolhido',
+      badge: 'Mais Vendido',
       displayOrder: 2,
       planFeatures: {
         create: [
-          { featureId: fDash.id },
-          { featureId: fUnits.id },
-          { featureId: fRes.id },
-          { featureId: fOccurrences.id },
-          { featureId: fFin.id },
-          { featureId: fAss.id },
-          { featureId: fVoting.id },
+          { featureId: featureMap['DASHBOARD_BASIC'] },
+          { featureId: featureMap['UNIT_MANAGEMENT'] },
+          { featureId: featureMap['RESIDENT_MANAGEMENT'] },
+          { featureId: featureMap['OCCURRENCES'] },
+          { featureId: featureMap['FINANCE_OPERATIONAL'] },
+          { featureId: featureMap['ASSEMBLIES'] },
+          { featureId: featureMap['VOTING'] },
+          { featureId: featureMap['NOTIFICATIONS_WHATSAPP'] },
+          { featureId: featureMap['REPORTS_ADVANCED'] },
         ]
       },
       unitTiers: {
-        create: [
-          { minUnits: 0, maxUnits: null, pricePerUnit: 1.50, flatPrice: 0 }
-        ]
+        create: [{ minUnits: 0, maxUnits: 100, pricePerUnit: 1.80, flatPrice: 0 }]
       }
     }
   })
 
-  // 4. Demo Condomínio
-  console.log('Creating demo contract...')
-  const demoContract = await prisma.contract.create({
-    data: {
-      cnpj: '00.000.000/0001-91',
-      legalName: 'Condomínio KONDOR Demo',
-      tradeName: 'Kondor Tower',
-      status: ContractStatus.ACTIVE,
-      units: {
-        create: [
-          { block: 'A', number: '101' },
-          { block: 'A', number: '102' }
-        ]
+  // GOLD - Master/BI
+  await prisma.plan.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000003' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000003',
+      name: 'Gold (Master Full)',
+      basePrice: 999.00,
+      billingCycle: 'MONTHLY',
+      badge: 'Completo',
+      displayOrder: 3,
+      planFeatures: {
+        create: baseFeatures.map(f => ({ featureId: featureMap[f.code] }))
+      },
+      unitTiers: {
+        create: [{ minUnits: 0, maxUnits: null, pricePerUnit: 1.50, flatPrice: 0 }]
       }
-    },
-    include: { units: true }
-  })
-
-  // 5. Associar Superadmin ao contrato demo (Membership) para testes
-  await prisma.membership.create({
-    data: {
-      userId: superAdmin.id,
-      contractId: demoContract.id,
-      role: Role.SUPERADMIN
     }
   })
 
-  // 6. Ledger entries p/ Teste Dashboard (Epic 4)
-  console.log('Generating seed ledger entries...')
-  await prisma.ledgerEntry.createMany({
-    data: [
-      {
-        contractId: demoContract.id,
-        amount: -1500.00,
-        description: 'Manutenção de Elevadores',
-        type: 'DEBIT',
-        correlationId: 'SEED-001'
-      },
-      {
-        contractId: demoContract.id,
-        amount: 3500.00,
-        description: 'Recebimento de Quotas (Lote Jan/2026)',
-        type: 'CREDIT',
-        correlationId: 'SEED-002'
-      },
-      {
-        contractId: demoContract.id,
-        amount: -250.00,
-        description: 'Limpeza de Caixa d\'Água',
-        type: 'DEBIT',
-        correlationId: 'SEED-003'
-      }
-    ]
-  })
-
-  console.log('Seed executed successfully!')
+  console.log('Seed Condo Lab executed successfully!')
 }
 
 main()
