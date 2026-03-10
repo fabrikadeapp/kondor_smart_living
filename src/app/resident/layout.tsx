@@ -1,5 +1,6 @@
 import { ReactNode } from "react"
-import { Building, WalletCards, Wrench } from "lucide-react"
+import Link from "next/link"
+import { Building, WalletCards, Wrench, Vote } from "lucide-react"
 import { TenantSwitcher } from "@/components/tenant-switcher"
 
 export default function ResidentLayout({ children }: { children: ReactNode }) {
@@ -22,19 +23,23 @@ export default function ResidentLayout({ children }: { children: ReactNode }) {
             </main>
 
             {/* Bottom Navigation Navbar (Mobile First) */}
-            <nav className="fixed bottom-0 left-0 w-full h-16 bg-white border-t flex items-center justify-around z-10 safe-area-pb">
-                <div className="flex flex-col items-center justify-center w-1/3 text-primary h-full">
-                    <Building className="h-6 w-6" />
-                    <span className="text-[10px] mt-1 font-medium">Início</span>
-                </div>
-                <div className="flex flex-col items-center justify-center w-1/3 text-slate-400 hover:text-slate-600 h-full">
-                    <WalletCards className="h-6 w-6" />
+            <nav className="fixed bottom-0 left-0 w-full h-16 bg-white border-t flex items-center justify-around z-20">
+                <Link href="/resident/dashboard" className="flex flex-col items-center justify-center w-1/4 text-primary h-full">
+                    <Building className="h-5 w-5" />
+                    <span className="text-[10px] mt-1 font-medium italic">Home</span>
+                </Link>
+                <Link href="/resident/assemblies" className="flex flex-col items-center justify-center w-1/4 text-slate-400 hover:text-primary h-full transition-colors">
+                    <Vote className="h-5 w-5" />
+                    <span className="text-[10px] mt-1 font-medium">Decisões</span>
+                </Link>
+                <Link href="/resident/dashboard" className="flex flex-col items-center justify-center w-1/4 text-slate-400 hover:text-primary h-full transition-colors">
+                    <WalletCards className="h-5 w-5" />
                     <span className="text-[10px] mt-1 font-medium">Boletos</span>
-                </div>
-                <div className="flex flex-col items-center justify-center w-1/3 text-slate-400 hover:text-slate-600 h-full">
-                    <Wrench className="h-6 w-6" />
-                    <span className="text-[10px] mt-1 font-medium">Ocorrências</span>
-                </div>
+                </Link>
+                <Link href="/resident/dashboard" className="flex flex-col items-center justify-center w-1/4 text-slate-400 hover:text-primary h-full transition-colors">
+                    <Wrench className="h-5 w-5" />
+                    <span className="text-[10px] mt-1 font-medium">Chamados</span>
+                </Link>
             </nav>
         </div>
     )

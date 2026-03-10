@@ -60,7 +60,7 @@ async function main() {
       },
       unitTiers: {
         create: [
-           { minUnits: 0, maxUnits: 100, pricePerUnit: 2.00, flatPrice: 0 }
+          { minUnits: 0, maxUnits: 100, pricePerUnit: 2.00, flatPrice: 0 }
         ]
       }
     }
@@ -86,7 +86,7 @@ async function main() {
       },
       unitTiers: {
         create: [
-           { minUnits: 0, maxUnits: null, pricePerUnit: 1.50, flatPrice: 0 }
+          { minUnits: 0, maxUnits: null, pricePerUnit: 1.50, flatPrice: 0 }
         ]
       }
     }
@@ -117,6 +117,34 @@ async function main() {
       contractId: demoContract.id,
       role: Role.SUPERADMIN
     }
+  })
+
+  // 6. Ledger entries p/ Teste Dashboard (Epic 4)
+  console.log('Generating seed ledger entries...')
+  await prisma.ledgerEntry.createMany({
+    data: [
+      {
+        contractId: demoContract.id,
+        amount: -1500.00,
+        description: 'Manutenção de Elevadores',
+        type: 'DEBIT',
+        correlationId: 'SEED-001'
+      },
+      {
+        contractId: demoContract.id,
+        amount: 3500.00,
+        description: 'Recebimento de Quotas (Lote Jan/2026)',
+        type: 'CREDIT',
+        correlationId: 'SEED-002'
+      },
+      {
+        contractId: demoContract.id,
+        amount: -250.00,
+        description: 'Limpeza de Caixa d\'Água',
+        type: 'DEBIT',
+        correlationId: 'SEED-003'
+      }
+    ]
   })
 
   console.log('Seed executed successfully!')
