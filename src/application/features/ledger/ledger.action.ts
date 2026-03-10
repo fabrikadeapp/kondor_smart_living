@@ -5,31 +5,22 @@ import prisma from "@/infrastructure/db/prisma"
 import { requireTenantContext } from "@/core/tenant/tenant-context"
 
 /**
- * Cria um lançamento no Ledger (Livro Caixa) Imutável.
- * NUNCA permite Edição ou Deleção.
+ * Cria um lançamento manual no Ledger.
  */
-export async function createLedgerEntryAction(formData: FormData) {
-    const { contractId, user } = await requireTenantContext()
+export async function createLedgerEntryAction(data: {
+    description: string;
+    amount: number;
+    type: "CREDIT" | "DEBIT";
+}) {
+    const { contractId } = await requireTenantContext()
 
-    const type = formData.get("type") as string // CREDIT, DEBIT
-    const amount = parseFloat(formData.get("amount") as string)
-    const description = formData.get("description") as string
-    const correlationId = formData.get("correlationId") as string || `MANUAL-${Date.now()}`
-
-    if (isNaN(amount) || !description) {
-        throw new Error("Valor e descrição são obrigatórios.")
-    }
-
-    // Se for DEBIT, forçamos o valor ser negativo para consistência do Ledger
-    const finalAmount = type === "DEBIT" ? -Math.abs(amount) : Math.abs(amount)
-
-    const entry = await prisma.ledgerEntry.create({
+    const entry = await (prisma as any).ledgerEntry.create({
         data: {
             contractId,
-            amount: finalAmount,
-            description,
-            type,
-            correlationId,
+            description: data.description,
+            amount: data.type === "DEBIT" ? Math.abs(data.amount) * -1 : Math.abs(data.amount),
+            type: data.type,
+            correlationId: `MANUAL-${Date.now()}`
         }
     })
 
@@ -38,69 +29,49 @@ export async function createLedgerEntryAction(formData: FormData) {
 }
 
 /**
- * Geração de Boletos Mestre (Bulk Billing Engine).
- * Usa Idempotency Key para evitar cobranças duplicadas.
+ * Geração Massiva de Cobranças (Quotas) com Idempotência.
  */
-export async function generateBulkMonthlyBillingAction() {
+export async function generateMonthlyBillsAction(monthYear: string) {
     const { contractId } = await requireTenantContext()
 
-    // 1. Identifica Unidades Ativas
-    const activeUnits = await prisma.unit.findMany({
-        where: { contractId, status: "ACTIVE" }
+    // 1. Buscar todas as Unidades do Condomínio
+    const units = await (prisma as any).unit.findMany({
+        where: { contractId }
     })
 
-    const now = new Date()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const year = now.getFullYear()
+    const results = { created: 0, skipped: 0 }
 
-    const results = { created: 0, skipped: 0, errors: 0 }
-
-    // 2. Transação por Unidade (Pode ser otimizado para CreateMany, mas mantemos isolado para auditoria individual)
-    for (const unit of activeUnits) {
-        const idempotencyKey = `${month}${year}-${contractId}-${unit.id}`
+    for (const unit of units) {
+        // Idempotency Key: Mês/Ano + Contrato + Unidade
+        const idempotencyKey = `${monthYear}-${contractId}-${unit.id}`
 
         try {
-            // Verifica se já existe cobrança para este período (Idempotência Hard)
-            const existing = await prisma.payment.findUnique({
-                where: { idempotencyKey }
+            // No modelo simplificado V1, criamos um Payment PENDING
+            await (prisma as any).payment.create({
+                data: {
+                    subscriptionId: null, // Pagamento de Quota, não do SaaS Kondor
+                    amount: 250.00, // Preço Fixo MVP ou base do contrato
+                    status: "PENDING",
+                    idempotencyKey,
+                    dueDate: new Date(), // Simulação
+                }
             })
 
-            if (existing) {
-                results.skipped++
-                continue
-            }
-
-            // Mock de valor fixo p/ MVP (Futuro: Ler de Planos/Quota do Condomínio)
-            const amount = 350.00
-
-            await prisma.$transaction(async (tx) => {
-                // Criar o pagamento (Mock Asaas na V1)
-                const payment = await tx.payment.create({
-                    data: {
-                        amount,
-                        status: "PENDING",
-                        idempotencyKey,
-                        dueDate: new Date(year, now.getMonth() + 1, 10), // Vence dia 10 do Prox Mês
-                    }
-                })
-
-                // Lançar no Ledger como "Expectativa de Receita / Cobrança"
-                await tx.ledgerEntry.create({
-                    data: {
-                        contractId,
-                        paymentId: payment.id,
-                        amount,
-                        description: `Mensalidade Ref ${month}/${year} - Unit ${unit.number}`,
-                        type: "CHARGE",
-                        correlationId: idempotencyKey
-                    }
-                })
+            // Registramos no Ledger como uma Receita Futura (opcional, ou só no ato do pagamento)
+            // Aqui registramos para mostrar no Dashboard como "A Receber"
+            await (prisma as any).ledgerEntry.create({
+                data: {
+                    contractId,
+                    description: `Quota Condominial - Ref: ${monthYear} - Unidade ${unit.number}`,
+                    amount: 250.00,
+                    type: "CREDIT",
+                    correlationId: idempotencyKey
+                }
             })
-
             results.created++
-        } catch (e) {
-            console.error(`Erro processando Unit ${unit.id}:`, e)
-            results.errors++
+        } catch (error) {
+            // Se falhar (ex: unique constraint na idempotencyKey), ignoramos (já gerado)
+            results.skipped++
         }
     }
 

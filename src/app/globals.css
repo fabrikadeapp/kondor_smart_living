@@ -51,7 +51,6 @@
   }
 }
 
-/* Custom Utilities */
 @utility shadow-apple {
   box-shadow: var(--shadow-apple);
 }
