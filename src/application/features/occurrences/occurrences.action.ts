@@ -33,19 +33,38 @@ export async function createOccurrenceAction(formData: FormData) {
     return occurrence
 }
 
+import { sendNotificationAction } from "@/application/features/notifications/notifications.action"
+
 /**
  * Atualiza o status de uma ocorrência (Admin).
  */
 export async function updateOccurrenceStatusAction(occurrenceId: string, status: any) {
     const { contractId } = await requireTenantContext()
 
-    // Garante posse antes de editar
+    // 1. Atualizar o Registro
     const occurrence = await prisma.occurrence.update({
         where: { id: occurrenceId, contractId },
-        data: { status }
+        data: { status },
+        include: { unit: { include: { userUnits: true } } }
     })
+
+    // 2. Trigger CSAT Automático
+    if (status === "RESOLVED") {
+        const targetUserId = occurrence.unit?.userUnits[0]?.userId
+        if (targetUserId) {
+            await sendNotificationAction({
+                userId: targetUserId,
+                unitId: occurrence.unitId || undefined,
+                title: "Chamado Finalizado ✅",
+                content: `Sua ocorrência #${occurrence.id.slice(0, 5)} foi resolvida. O que achou do atendimento?`,
+                type: "IN_APP"
+            })
+            // Nota: Em V2 poderíamos incluir o link direto: /resident/occurrences/${occurrence.id}/survey
+        }
+    }
 
     revalidatePath("/admin/occurrences")
     revalidatePath("/resident/dashboard")
     return occurrence
 }
+

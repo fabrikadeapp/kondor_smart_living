@@ -152,7 +152,9 @@ model Contract {
   marketplaceOrders     MarketplaceOrder[]
   employees             Employee[]
   notifications         Notification[]
+  surveys               SatisfactionSurvey[]
 }
+
 
 model User {
   id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -435,7 +437,22 @@ model Occurrence {
 
   contract       Contract         @relation(fields: [contractId], references: [id])
   unit           Unit?            @relation(fields: [unitId], references: [id])
+  survey         SatisfactionSurvey? @relation("OccurrenceSurvey")
 }
+
+model SatisfactionSurvey {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  occurrenceId   String         @unique @db.Uuid
+  rating         Int
+
+  comment        String?
+  createdAt      DateTime       @default(now())
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+  occurrence     Occurrence     @relation("OccurrenceSurvey", fields: [occurrenceId], references: [id], onDelete: Cascade)
+}
+
 
 model Delivery {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
