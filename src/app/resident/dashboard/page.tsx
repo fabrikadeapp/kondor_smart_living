@@ -1,5 +1,6 @@
 import { requireTenantContext } from "@/core/tenant/tenant-context"
 import { Card, CardContent } from "@/components/ui/card"
+import { Package } from "lucide-react"
 import prisma from "@/infrastructure/db/prisma"
 
 export default async function ResidentDashboardPage() {
@@ -24,6 +25,15 @@ export default async function ResidentDashboardPage() {
         where: { id: contractId }
     })
 
+    // Buscar entregas pendentes para as unidades do morador
+    const unitIds = activeUserUnits.map(uu => uu.unitId)
+    const pendingDeliveries = await prisma.delivery.findMany({
+        where: {
+            unitId: { in: unitIds },
+            status: { in: ['PENDING', 'NOTIFIED'] }
+        }
+    })
+
     return (
         <div className="p-4 space-y-4">
             <div className="pt-2 pb-4 border-b">
@@ -31,13 +41,28 @@ export default async function ResidentDashboardPage() {
                     Olá, {user.name?.split(' ')[0]}!
                 </h2>
                 <p className="text-sm text-slate-500">
-                    Você está visualizando <strong className="text-primary">{activeContract?.tradeName || contractId}</strong>
+                    Você está visualizando <strong className="text-primary">{activeContract?.tradeName || activeContract?.legalName}</strong>
                 </p>
             </div>
 
+            {/* Alerta de Encomenda (Epic 4 finishing) */}
+            {pendingDeliveries.length > 0 && (
+                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between animate-pulse">
+                    <div>
+                        <p className="text-sm font-bold text-emerald-800">
+                            {pendingDeliveries.length === 1 ? 'Há 1 pacote te esperando!' : `Há ${pendingDeliveries.length} pacotes te esperando!`}
+                        </p>
+                        <p className="text-[10px] text-emerald-600">Retirada na portaria principal.</p>
+                    </div>
+                    <div className="h-8 w-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold">
+                        <Package className="w-4 h-4" />
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-4">
-                {/* Minhas Unidades Placeholder */}
                 <h3 className="font-semibold text-slate-700 text-sm uppercase px-1">Tipos de Acesso</h3>
+                ...
 
                 {activeUserUnits.length > 0 ? (
                     activeUserUnits.map((uu) => (
