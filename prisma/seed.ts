@@ -123,6 +123,36 @@ async function main() {
       }
     }
   })
+  // 4. Demo Condomínio
+  console.log('Creating demo contract...')
+  const demoContract = await prisma.contract.upsert({
+    where: { cnpj: '00.000.000/0001-91' },
+    update: { planId: '00000000-0000-0000-0000-000000000001' },
+    create: {
+      cnpj: '00.000.000/0001-91',
+      legalName: 'Condomínio KONDOR Demo',
+      tradeName: 'Kondor Tower',
+      status: ContractStatus.ACTIVE,
+      planId: '00000000-0000-0000-0000-000000000001', // Bronze
+      units: {
+        create: [
+          { block: 'A', number: '101' },
+          { block: 'A', number: '102' }
+        ]
+      }
+    }
+  })
+
+  // 5. Membership para Superadmin
+  await prisma.membership.upsert({
+    where: { userId_contractId: { userId: superAdmin.id, contractId: demoContract.id } },
+    update: {},
+    create: {
+      userId: superAdmin.id,
+      contractId: demoContract.id,
+      role: Role.SUPERADMIN
+    }
+  })
 
   console.log('Seed Condo Lab executed successfully!')
 }

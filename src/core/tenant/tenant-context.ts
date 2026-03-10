@@ -77,27 +77,24 @@ export async function requireGlobalContext() {
 export async function checkFeatureAccess(code: string): Promise<boolean> {
     const { contractId } = await requireTenantContext()
 
-    // 1. Verificar no Plano (Subscription -> Plan -> Features)
-    const planAccess = await prisma.contract.findUnique({
+    // 1. Verificar no Plano Direto (Contract -> Plan -> Features)
+    const contractWithPlan = await (prisma as any).contract.findUnique({
         where: { id: contractId },
         include: {
-            subscription: {
+            plan: {
                 include: {
-                    plan: {
-                        include: {
-                            planFeatures: {
-                                include: { feature: { select: { code: true } } }
-                            }
-                        }
+                    planFeatures: {
+                        include: { feature: { select: { code: true } } }
                     }
                 }
             }
         }
     })
 
-    const hasInPlan = planAccess?.subscription?.plan.planFeatures.some(
+    const hasInPlan = contractWithPlan?.plan?.planFeatures.some(
         (pf: any) => pf.feature.code === code
     )
+
 
 
     if (hasInPlan) return true

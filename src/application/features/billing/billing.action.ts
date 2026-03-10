@@ -28,16 +28,37 @@ export async function getSubscriptionDataAction() {
 }
 
 /**
- * Realiza o upgrade/troca de plano do condomínio.
+ * Realiza o upgrade/troca de plano do condomínio com Checkout Simulado.
  */
 export async function upgradePlanAction(planId: string) {
     const { contractId } = await requireTenantContext()
 
+    // 1. Buscar detalhes do novo plano para o recibo/ledger
+    const targetPlan = await (prisma as any).plan.findUnique({
+        where: { id: planId }
+    })
+
+    if (!targetPlan) throw new Error("Plano não encontrado.")
+
+    // 2. Atualizar o plano do contrato
     await (prisma as any).contract.update({
         where: { id: contractId },
-        data: { planId }
+        data: { planId: planId }
+    })
+
+    // 3. Gerar Ledger Entry Simulado (Checkout de Inscrição)
+    // Usamos o ledger do condomínio para registrar o custo do SaaS como saída
+    await (prisma as any).ledgerEntry.create({
+        data: {
+            contractId,
+            amount: Number(targetPlan.basePrice),
+            description: `Assinatura SaaS: Upgrade para o Plano ${targetPlan.name}`,
+            type: "DEBIT", // É uma despesa para o condomínio
+            correlationId: `UPGRADE-${Date.now()}`
+        }
     })
 
     revalidatePath("/admin/billing/upgrade")
     revalidatePath("/admin/dashboard")
 }
+
