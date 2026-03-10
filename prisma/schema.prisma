@@ -150,6 +150,8 @@ model Contract {
   ledgerEntries         LedgerEntry[]
   partners              Partner[]
   marketplaceOrders     MarketplaceOrder[]
+  employees             Employee[]
+  notifications         Notification[]
 }
 
 model User {
@@ -166,9 +168,11 @@ model User {
   memberships           Membership[]
   userUnits             UserUnit[]
   specialistPermissions SpecialistPermission[]
+  notifications         Notification[]
 }
 
 model Membership {
+
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String           @db.Uuid
   contractId      String           @db.Uuid
@@ -205,6 +209,7 @@ model Unit {
   deliveries      Delivery[]
   marketplaceOrders MarketplaceOrder[]
   assemblyVotes   AssemblyVote[]
+  notifications   Notification[]
 }
 
 
@@ -568,3 +573,42 @@ model MarketplaceOrder {
   contract       Contract       @relation(fields: [contractId], references: [id])
   unit           Unit           @relation(fields: [unitId], references: [id])
 }
+
+// ============================================================================
+// EMPLOYEES & STAFF (TASK 4.6)
+// ============================================================================
+
+model Employee {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  name           String
+  role           String         // PORTEIRO, ZELADOR, LIMPEZA, SINDICO, etc.
+  isInternal     Boolean        @default(true) // Próprio ou Terceirizado
+  salary         Decimal        @db.Decimal(10, 2)
+  status         String         @default("ACTIVE")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+}
+
+// ============================================================================
+// COMMUNICATION & NOTIFICATIONS (TASK 1.6)
+// ============================================================================
+
+model Notification {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  unitId         String?        @db.Uuid // Alvo específico ou Global
+  userId         String?        @db.Uuid // Usuário alvo
+  title          String
+  content        String
+  type           String         // WHATSAPP, PUSH, IN_APP
+  status         String         @default("SENT") // SENT, READ, FAILED
+  createdAt      DateTime       @default(now())
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+  unit           Unit?          @relation(fields: [unitId], references: [id])
+  user           User?          @relation(fields: [userId], references: [id])
+}
+
