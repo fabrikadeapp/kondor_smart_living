@@ -25,7 +25,7 @@ Feature: Foundation & DB Setup
 
 ---
 
-## 📖 Story 1.2: Motor de Autenticação (NextAuth/JWT base)
+## 📖 Story 1.2: Motor de Autenticação (NextAuth/JWT base) - [x]
 **Como** Usuário (Global ou Tenant)
 **Quero** fazer login no sistema com meu e-mail e senha
 **Para que** eu possa acessar os recursos restritos ao meu perfil e receber meu token JWT autenticado com meus cargos (Roles).
@@ -49,7 +49,7 @@ Feature: Basic User Identity
 
 ---
 
-## 📖 Story 1.3: Middleware "Hard Boundary" (O Isolamento Multi-Tenant)
+## 📖 Story 1.3: Middleware "Hard Boundary" (O Isolamento Multi-Tenant) - [x]
 **Como** Sistema
 **Quero** interceptar todas as requisições autenticadas nas rotas administrativas
 **Para que** eu possa resolver ativamente o `contract_id` atual da navegação (Baseado na URL/Sessão) e injetar esse UUID no Prisma automaticamente.
@@ -72,7 +72,7 @@ Feature: Tenant Isolation
 
 ---
 
-## 📖 Story 1.4: Context Switcher (Dropdown Mágico)
+## 📖 Story 1.4: Context Switcher (Dropdown Mágico) - [x]
 **Como** ADMIN (Síndico Profissional)
 **Quero** um Dropdown universal no Header (ou Sidenav) da aplicação
 **Para que** eu possa selecionar outro condomínio sob minha gestão sem precisar relogar, atualizando instantaneamente os dados do painel atual.
@@ -92,7 +92,7 @@ Feature: Context Switch
 
 ---
 
-## 📖 Story 1.5: Modo "Portal do Morador" (App View)
+## 📖 Story 1.5: Modo "Portal do Morador" (App View) - [x]
 **Como** Morador proprietário de UHs
 **Quero** acessar o sistema e imediatamente visualizar uma interface App-like minimalista 
 **Para que** eu visualize unicamente meus boletos e incidentes, sem enxergar as rotas de finanças do Condomínio, mesmo se eu também for Síndico.

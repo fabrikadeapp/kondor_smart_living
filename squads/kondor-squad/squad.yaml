@@ -1,0 +1,50 @@
+name: kondor-squad
+version: 1.0.0
+description: "Squad especializado na execução do Core Operacional e Faturamento (Epic 4) e Onboarding (Epic 2) do Kondor Smart Living."
+author: "Craft (Squad Creator)"
+type: development
+
+config:
+  coding_standards: "../../docs/framework/coding-standards.md"
+  tech_stack: "../../docs/framework/tech-stack.md"
+
+agents:
+  - id: fin-dex
+    name: "Finance Dex"
+    role: "Especialista em Ledger Imutável e Integração de Pagamentos"
+    persona: "Focado em precisão matemática, idempotência e segurança financeira."
+  
+  - id: ops-dex
+    name: "Ops Dex"
+    role: "Especialista em CRUDs Operacionais e Gestão de Unidades"
+    persona: "Focado em performance de query, isolamento Multi-Tenant e UX de portaria."
+
+  - id: wizard-dex
+    name: "Wizard Dex"
+    role: "Especialista em Fluxos Complexos de Onboarding"
+    persona: "Focado em State Machines, Zod validation e Frictionless UX."
+
+tasks:
+  - id: task-4-1-units-crud
+    name: "Implementar CRUD de Unidades e Moradores"
+    agent: ops-dex
+    story: "docs/stories/EPIC-4.md#4.1"
+    status: todo
+
+  - id: task-4-2-ledger-engine
+    name: "Implementar Ledger Imutável e Geração de Boletos"
+    agent: fin-dex
+    story: "docs/stories/EPIC-4.md#4.2"
+    status: todo
+
+  - id: task-4-3-occurrences
+    name: "Implementar Sistema de Ocorrências"
+    agent: ops-dex
+    story: "docs/stories/EPIC-4.md#4.3"
+    status: todo
+
+  - id: task-2-1-onboarding-wizard
+    name: "Implementar Wizard de Onboarding Institucional"
+    agent: wizard-dex
+    story: "docs/backlog/BACKLOG-EPIC-2-AND-4.md" # EPIC 2 part
+    status: todo
