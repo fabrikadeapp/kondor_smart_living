@@ -1,0 +1,520 @@
+// This is your Prisma schema file.
+// It maps the domain model for Kondor Smart Living, adhering to the Multi-Tenant principles.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  RECEPTION
+  SPECIALIST
+  RESIDENT
+}
+
+enum ContractStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum UnitStatus {
+  ACTIVE
+  INACTIVE
+  UNDER_CONSTRUCTION
+}
+
+enum UnitType {
+  APARTMENT
+  HOUSE
+  COMMERCIAL
+  PENTHOUSE
+}
+
+enum ResidentRelation {
+  OWNER
+  TENANT
+  FAMILY_MEMBER
+  OTHER
+}
+
+enum UserUnitStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  OVERDUE
+  REFUNDED
+}
+
+enum OccurrenceStatus {
+  OPEN
+  UNDER_ANALYSIS
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  PENDING
+  NOTIFIED
+  RETRIEVED
+  CANCELLED
+}
+
+enum AssemblyStatus {
+  DRAFT
+  SCHEDULED
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum PollStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum ReservationStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum VoucherStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+  EXHAUSTED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+// ============================================================================
+// CORE MULTI-TENANT & USERS
+// ============================================================================
+
+model Contract {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cnpj            String         @unique
+  legalName       String
+  tradeName       String?
+  status          ContractStatus @default(TRIAL)
+  subscriptionId  String?        @unique @db.Uuid
+  subscription    Subscription?  @relation(fields: [subscriptionId], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  memberships           Membership[]
+  units                 Unit[]
+  userUnits             UserUnit[]
+  tenantAddOns          TenantAddOn[]
+  occurrences           Occurrence[]
+  deliveries            Delivery[]
+  assemblies            Assembly[]
+  vouchersUsed          VoucherRedemption[]
+  specialistPermissions SpecialistPermission[]
+  ledgerEntries         LedgerEntry[]
+}
+
+model User {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String         @unique
+  passwordHash    String
+  name            String
+  document        String?        @unique // CPF/CNPJ
+  phone           String?
+  is2FAEnabled    Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  memberships           Membership[]
+  userUnits             UserUnit[]
+  specialistPermissions SpecialistPermission[]
+}
+
+model Membership {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String           @db.Uuid
+  contractId      String           @db.Uuid
+  role            Role
+  status          MembershipStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract        Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contractId])
+}
+
+// ============================================================================
+// UNITS & RESIDENTS
+// ============================================================================
+
+model Unit {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId      String       @db.Uuid
+  block           String?
+  tower           String?
+  floor           String?
+  number          String
+  status          UnitStatus   @default(ACTIVE)
+  type            UnitType?    @default(APARTMENT)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  contract        Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  userUnits       UserUnit[]
+  occurrences     Occurrence[]
+  deliveries      Delivery[]
+}
+
+model UserUnit {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String           @db.Uuid
+  unitId           String           @db.Uuid
+  contractId       String           @db.Uuid
+  relationshipType ResidentRelation
+  isPrimary        Boolean          @default(false)
+  status           UserUnitStatus   @default(ACTIVE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id])
+  unit             Unit     @relation(fields: [unitId], references: [id])
+  contract         Contract @relation(fields: [contractId], references: [id])
+
+  @@unique([userId, unitId])
+}
+
+// ============================================================================
+// PLAN, BILLING & MONETIZATION
+// ============================================================================
+
+model Plan {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  isActive       Boolean        @default(true)
+  basePrice      Decimal        @db.Decimal(10, 2)
+  billingCycle   String         // MONTHLY, YEARLY
+  badge          String?
+  displayOrder   Int            @default(0)
+  showOnLanding  Boolean        @default(true)
+  hasTrial       Boolean        @default(true)
+  trialDays      Int            @default(14)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  planFeatures   PlanFeature[]
+  subscriptions  Subscription[]
+  unitTiers      UnitTier[]
+}
+
+model UnitTier {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId         String     @db.Uuid
+  minUnits       Int
+  maxUnits       Int?
+  pricePerUnit   Decimal    @db.Decimal(10, 2)
+  flatPrice      Decimal    @default(0) @db.Decimal(10, 2)
+  
+  plan           Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model Feature {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String        @unique // ex: ASSEMBLEIAS_DIGITAIS
+  name           String
+  description    String?
+  
+  planFeatures   PlanFeature[]
+  addOnFeatures  AddOnFeature[]
+}
+
+model PlanFeature {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId         String     @db.Uuid
+  featureId      String     @db.Uuid
+  limit          Int?       // Null = Ilimitado
+  
+  plan           Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature        Feature    @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureId])
+}
+
+model Subscription {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId         String             @db.Uuid
+  status         SubscriptionStatus @default(TRIAL)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean        @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  plan           Plan               @relation(fields: [planId], references: [id])
+  contract       Contract?          // Relacionamento 1:1 definido do lado do Contract
+  payments       Payment[]
+  events         SubscriptionEvent[]
+}
+
+model SubscriptionEvent {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId String       @db.Uuid
+  eventType      String       // STARTED, SUSPENDED, UPGRADED
+  payload        Json?
+  createdAt      DateTime     @default(now())
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model Payment {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId String        @db.Uuid
+  amount         Decimal       @db.Decimal(10, 2)
+  currency       String        @default("BRL")
+  status         PaymentStatus @default(PENDING)
+  idempotencyKey String        @unique
+  dueDate        DateTime
+  paidAt         DateTime?
+  gatewayId      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+  ledgerEntries  LedgerEntry[]
+}
+
+// ============================================================================
+// FINANCIAL LEDGER & VOUCHERS
+// ============================================================================
+
+model LedgerEntry {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String       @db.Uuid
+  paymentId      String?      @db.Uuid
+  correlationId  String
+  type           String       // CREDIT, DEBIT, REFUND, CHARGE
+  amount         Decimal      @db.Decimal(10, 2) // Positivo ou Negativo
+  description    String
+  createdAt      DateTime     @default(now())
+
+  contract       Contract     @relation(fields: [contractId], references: [id])
+  payment        Payment?     @relation(fields: [paymentId], references: [id])
+  
+  // Ledger entries are append-only. NUNCA apagados ou editados.
+}
+
+model Voucher {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String       @unique
+  discountType   String       // PERCENTAGE, FIXED
+  discountValue  Decimal      @db.Decimal(10, 2)
+  status         VoucherStatus @default(ACTIVE)
+  maxUses        Int?
+  usedCount      Int          @default(0)
+  validFrom      DateTime?
+  validUntil     DateTime?
+  restrictions   Json?        // Plans allowed, etc.
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  redemptions    VoucherRedemption[]
+}
+
+model VoucherRedemption {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  voucherId      String       @db.Uuid
+  contractId     String       @db.Uuid
+  redeemedAt     DateTime     @default(now())
+
+  voucher        Voucher      @relation(fields: [voucherId], references: [id])
+  contract       Contract     @relation(fields: [contractId], references: [id])
+}
+
+// ============================================================================
+// ADD-ONS
+// ============================================================================
+
+model AddOn {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  code           String         @unique
+  description    String?
+  price          Decimal        @db.Decimal(10, 2)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+
+  features       AddOnFeature[]
+  tenantAddOns   TenantAddOn[]
+}
+
+model AddOnFeature {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  addOnId        String     @db.Uuid
+  featureId      String     @db.Uuid
+
+  addOn          AddOn      @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  feature        Feature    @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  
+  @@unique([addOnId, featureId])
+}
+
+model TenantAddOn {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String     @db.Uuid
+  addOnId        String     @db.Uuid
+  status         String     // ACTIVE, CANCELLED
+  activatedAt    DateTime   @default(now())
+  cancelledAt    DateTime?
+
+  contract       Contract   @relation(fields: [contractId], references: [id])
+  addOn          AddOn      @relation(fields: [addOnId], references: [id])
+}
+
+// ============================================================================
+// OPERATIONAL
+// ============================================================================
+
+model Occurrence {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String           @db.Uuid
+  unitId         String?          @db.Uuid
+  category       String
+  priority       String
+  description    String
+  status         OccurrenceStatus @default(OPEN)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  contract       Contract         @relation(fields: [contractId], references: [id])
+  unit           Unit?            @relation(fields: [unitId], references: [id])
+}
+
+model Delivery {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  unitId         String         @db.Uuid
+  trackingCode   String?
+  description    String?
+  status         DeliveryStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+  unit           Unit           @relation(fields: [unitId], references: [id])
+}
+
+model SpecialistPermission {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String     @db.Uuid
+  userId         String     @db.Uuid
+  permissions    Json       // Array de ações permitidas ex: ['occurrences:read', 'inventory:write']
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  contract       Contract   @relation(fields: [contractId], references: [id])
+  user           User       @relation(fields: [userId], references: [id])
+
+  @@unique([contractId, userId])
+}
+
+// ============================================================================
+// GOVERNANCE & ASSEMBLIES
+// ============================================================================
+
+model Assembly {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contractId     String         @db.Uuid
+  title          String
+  description    String?
+  status         AssemblyStatus @default(DRAFT)
+  scheduledFor   DateTime?
+  openedAt       DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  contract       Contract       @relation(fields: [contractId], references: [id])
+  polls          AssemblyPoll[]
+  minutes        AssemblyMinute[]
+}
+
+model AssemblyPoll {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assemblyId     String         @db.Uuid
+  question       String
+  status         PollStatus     @default(DRAFT)
+  
+  assembly       Assembly       @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  options        AssemblyOption[]
+  votes          AssemblyVote[]
+}
+
+model AssemblyOption {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pollId         String         @db.Uuid
+  text           String
+  
+  poll           AssemblyPoll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes          AssemblyVote[]
+}
+
+model AssemblyVote {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pollId         String         @db.Uuid
+  optionId       String         @db.Uuid
+  unitId         String         @db.Uuid // Registra a unidade votante
+  castAt         DateTime       @default(now())
+
+  poll           AssemblyPoll   @relation(fields: [pollId], references: [id])
+  option         AssemblyOption @relation(fields: [optionId], references: [id])
+
+  // Invariante de Negócio: 1 voto por unidade na mesma poll.
+  @@unique([pollId, unitId])
+}
+
+model AssemblyMinute {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assemblyId     String         @db.Uuid
+  contentUrl     String         // URL do PDF da ata gerada
+  createdAt      DateTime       @default(now())
+  
+  assembly       Assembly       @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+}
