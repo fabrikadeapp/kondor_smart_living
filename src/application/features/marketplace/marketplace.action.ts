@@ -25,9 +25,12 @@ export async function purchaseServiceAction(data: {
     // 2. Calcular comissão (Ex: 10% de 500,00 = 50,00)
     const totalAmount = service.price
     const commissionRate = service.partner.commissionRate
-    const commissionValue = totalAmount.times(commissionRate).div(100)
+    const commissionValue = totalAmount.mul(commissionRate).div(100)
 
-    // 3. Executar Transação no Banco
+    // 3. Simular geração de Checkout Asaas
+    const asaasCheckoutUrl = `https://sandbox.asaas.com/checkout/${service.id}`
+
+    // 4. Executar Transação no Banco
     const order = await prisma.$transaction(async (tx) => {
         // a. Criar a Ordem no Marketplace
         const orderRecord = await tx.marketplaceOrder.create({
@@ -37,7 +40,7 @@ export async function purchaseServiceAction(data: {
                 serviceId: data.serviceId,
                 totalAmount,
                 commissionValue,
-                status: "COMPLETED"
+                status: "PENDING" // Agora começa como PENDING até o Checkout
             }
         })
 
@@ -46,7 +49,7 @@ export async function purchaseServiceAction(data: {
             data: {
                 contractId,
                 amount: commissionValue,
-                description: `Comissão Marketplace: ${service.name} (${service.partner.name})`,
+                description: `Comissão Marketplace (PENDING): ${service.name} (${service.partner.name})`,
                 type: "CREDIT",
                 correlationId: `MKP-${orderRecord.id}`
             }
@@ -57,8 +60,10 @@ export async function purchaseServiceAction(data: {
 
     revalidatePath("/admin/transactions")
     revalidatePath("/resident/dashboard")
-    return order
+
+    return { ...order, checkoutUrl: asaasCheckoutUrl }
 }
+
 
 /**
  * Cadastrar um novo Parceiro (Admin).

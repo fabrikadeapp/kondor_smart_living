@@ -1,6 +1,6 @@
 import { ReactNode } from "react"
 import Link from "next/link"
-import { Building, WalletCards, Wrench, Vote } from "lucide-react"
+import { Building, WalletCards, Wrench, Vote, Handshake } from "lucide-react"
 import { TenantSwitcher } from "@/components/tenant-switcher"
 
 export default function ResidentLayout({ children }: { children: ReactNode }) {
@@ -32,9 +32,9 @@ export default function ResidentLayout({ children }: { children: ReactNode }) {
                     <Vote className="h-5 w-5" />
                     <span className="text-[10px] mt-1 font-medium">Decisões</span>
                 </Link>
-                <Link href="/resident/dashboard" className="flex flex-col items-center justify-center w-1/4 text-slate-400 hover:text-primary h-full transition-colors">
-                    <WalletCards className="h-5 w-5" />
-                    <span className="text-[10px] mt-1 font-medium">Boletos</span>
+                <Link href="/resident/marketplace" className="flex flex-col items-center justify-center w-1/4 text-slate-400 hover:text-primary h-full transition-colors">
+                    <Handshake className="h-5 w-5" />
+                    <span className="text-[10px] mt-1 font-medium italic">Serviços</span>
                 </Link>
                 <Link href="/resident/dashboard" className="flex flex-col items-center justify-center w-1/4 text-slate-400 hover:text-primary h-full transition-colors">
                     <Wrench className="h-5 w-5" />

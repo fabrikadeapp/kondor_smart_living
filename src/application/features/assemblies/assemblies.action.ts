@@ -73,3 +73,37 @@ export async function updateAssemblyStatusAction(assemblyId: string, status: any
     revalidatePath("/resident/assemblies")
     return assembly
 }
+
+/**
+ * Registra o voto do morador (Unidade) em um item de pauta.
+ * Invariante: 1 voto por Unit por Poll.
+ */
+export async function castVoteAction(pollId: string, optionId: string, unitId: string) {
+    const { contractId } = await requireTenantContext()
+
+    // 1. Validar se a poll pertence a este contrato via Assembly
+    const poll = await prisma.assemblyPoll.findUnique({
+        where: { id: pollId },
+        include: { assembly: true }
+    })
+
+    if (!poll || poll.assembly.contractId !== contractId) {
+        throw new Error("Pauta não encontrada ou acesso negado.")
+    }
+
+    if (poll.status !== "OPEN" && poll.assembly.status !== "OPEN") {
+        throw new Error("Votação fechada ou não iniciada.")
+    }
+
+    // 2. Criar o voto (o constraint 'pollId_unitId' no DB garante a unicidade)
+    const vote = await prisma.assemblyVote.create({
+        data: {
+            pollId,
+            optionId,
+            unitId,
+        }
+    })
+
+    revalidatePath(`/resident/assemblies/${poll.assemblyId}`)
+    return vote
+}

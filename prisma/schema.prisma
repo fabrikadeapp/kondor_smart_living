@@ -204,7 +204,9 @@ model Unit {
   occurrences     Occurrence[]
   deliveries      Delivery[]
   marketplaceOrders MarketplaceOrder[]
+  assemblyVotes   AssemblyVote[]
 }
+
 
 model UserUnit {
   id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -508,6 +510,8 @@ model AssemblyVote {
 
   poll           AssemblyPoll   @relation(fields: [pollId], references: [id])
   option         AssemblyOption @relation(fields: [optionId], references: [id])
+  unit           Unit           @relation(fields: [unitId], references: [id])
+
 
   // Invariante de Negócio: 1 voto por unidade na mesma poll.
   @@unique([pollId, unitId])

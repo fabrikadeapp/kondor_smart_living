@@ -2,14 +2,11 @@ import { requireTenantContext } from "@/core/tenant/tenant-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Package } from "lucide-react"
 import prisma from "@/infrastructure/db/prisma"
+import Link from "next/link"
 
 export default async function ResidentDashboardPage() {
-    // A barreira do Multi-Tenant App View
-    // Injeta forçadamente isso ou barra a página.
     const { contractId, role, user } = await requireTenantContext()
 
-    // Neste cenário real, buscaremos os dados apenas das propriedades (Units)
-    // em que este User está mapeado como Owner ou Tenant:
     const activeUserUnits = await prisma.userUnit.findMany({
         where: {
             contractId,
@@ -20,12 +17,10 @@ export default async function ResidentDashboardPage() {
         }
     })
 
-    // Retorna os Nomes Legais para exibir
     const activeContract = await prisma.contract.findUnique({
         where: { id: contractId }
     })
 
-    // Buscar entregas pendentes para as unidades do morador
     const unitIds = activeUserUnits.map(uu => uu.unitId)
     const pendingDeliveries = await prisma.delivery.findMany({
         where: {
@@ -45,7 +40,6 @@ export default async function ResidentDashboardPage() {
                 </p>
             </div>
 
-            {/* Alerta de Encomenda (Epic 4 finishing) */}
             {pendingDeliveries.length > 0 && (
                 <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between animate-pulse">
                     <div>
@@ -62,14 +56,12 @@ export default async function ResidentDashboardPage() {
 
             <div className="space-y-4">
                 <h3 className="font-semibold text-slate-700 text-sm uppercase px-1">Tipos de Acesso</h3>
-                ...
-
                 {activeUserUnits.length > 0 ? (
                     activeUserUnits.map((uu) => (
                         <Card key={uu.id}>
                             <CardContent className="p-4 flex items-center justify-between">
-                                <div className="font-medium">Unidade {uu.unit.number}</div>
-                                <div className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full font-semibold uppercase">
+                                <div className="font-medium text-slate-700">Unidade {uu.unit.number}</div>
+                                <div className="text-[10px] px-2 py-1 bg-primary/10 text-primary rounded-full font-bold uppercase tracking-tight">
                                     {uu.relationshipType}
                                 </div>
                             </CardContent>
@@ -79,20 +71,33 @@ export default async function ResidentDashboardPage() {
                     <Card>
                         <CardContent className="p-6 text-center text-sm text-slate-500">
                             {role === 'ADMIN' ? (
-                                <>Você é Síndico aqui, mas nenhuma unidade está associada a você como morador diretamente.</>
+                                <>Administrador do Sistema</>
                             ) : (
-                                <>Nenhuma unidade vinculada ao seu usuário ainda. Fale com o Síndico.</>
+                                <>Nenhuma unidade vinculada.</>
                             )}
                         </CardContent>
                     </Card>
                 )}
 
-                <div className="mt-8">
-                    <h3 className="font-semibold text-slate-700 text-sm uppercase px-1 mb-2">Fatura Atual</h3>
-                    <Card className="border-l-4 border-l-amber-500">
+                <div className="mt-8 flex flex-col gap-3">
+                    <h3 className="font-semibold text-slate-700 text-sm uppercase px-1 mb-2">Transparência Financeira</h3>
+                    <Card className="bg-slate-900 text-white overflow-hidden group border-0 shadow-lg shadow-slate-200">
+                        <CardContent className="p-4 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Saúde do Prédio</p>
+                                <p className="text-sm font-medium">Veja onde seu condomínio investe.</p>
+                            </div>
+                            <Link href="/admin/reports/transparency" className="h-9 px-4 bg-primary text-[11px] font-bold rounded-lg flex items-center hover:bg-primary/90 transition-all">
+                                Explorar
+                            </Link>
+                        </CardContent>
+                    </Card>
+
+                    <h3 className="font-semibold text-slate-700 text-sm uppercase px-1 mb-2 mt-4">Fatura Atual</h3>
+                    <Card className="border-l-4 border-l-amber-500 shadow-sm">
                         <CardContent className="p-4 space-y-1">
-                            <p className="font-medium text-lg leading-none">R$ 0,00</p>
-                            <p className="text-xs text-slate-500">Fechamento: Dia 05</p>
+                            <p className="font-bold text-lg leading-none text-slate-800 tracking-tight">R$ 0,00</p>
+                            <p className="text-[10px] text-slate-500 font-medium uppercase">Vencimento: Dia 05</p>
                         </CardContent>
                     </Card>
                 </div>
