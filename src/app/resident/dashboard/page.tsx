@@ -41,17 +41,19 @@ export default async function ResidentDashboardPage() {
             </div>
 
             {pendingDeliveries.length > 0 && (
-                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between animate-pulse">
-                    <div>
-                        <p className="text-sm font-bold text-emerald-800">
-                            {pendingDeliveries.length === 1 ? 'Há 1 pacote te esperando!' : `Há ${pendingDeliveries.length} pacotes te esperando!`}
-                        </p>
-                        <p className="text-[10px] text-emerald-600">Retirada na portaria principal.</p>
+                <Link href="/resident/deliveries" className="block">
+                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between animate-pulse hover:bg-emerald-100 transition-colors">
+                        <div>
+                            <p className="text-sm font-bold text-emerald-800">
+                                {pendingDeliveries.length === 1 ? 'Há 1 pacote te esperando!' : `Há ${pendingDeliveries.length} pacotes te esperando!`}
+                            </p>
+                            <p className="text-[10px] text-emerald-600">Retirada na portaria principal.</p>
+                        </div>
+                        <div className="h-8 w-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold">
+                            <Package className="w-4 h-4" />
+                        </div>
                     </div>
-                    <div className="h-8 w-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold">
-                        <Package className="w-4 h-4" />
-                    </div>
-                </div>
+                </Link>
             )}
 
             <div className="space-y-4">
