@@ -5,86 +5,64 @@ import prisma from "@/infrastructure/db/prisma"
 import { requireTenantContext } from "@/core/tenant/tenant-context"
 
 /**
- * Criação da Ordem de Serviço (Marketplace)
- * Quando o morador contrata, o Ledger do Condomínio recebe a comissão.
+ * Busca todos os parceiros e serviços disponíveis para o Morador.
  */
-export async function purchaseServiceAction(data: {
+export async function getMarketplaceServices() {
+    const { contractId } = await requireTenantContext()
+    return prisma.partner.findMany({
+        where: { contractId, status: "ACTIVE" },
+        include: { services: true }
+    })
+}
+
+/**
+ * Cria um pedido no Marketplace.
+ */
+export async function createMarketplaceOrderAction(data: {
     serviceId: string;
     unitId: string;
+    totalAmount: number;
+    commissionValue: number;
 }) {
     const { contractId } = await requireTenantContext()
 
-    // 1. Buscar detalhes do serviço e parceiro
-    const service = await prisma.partnerService.findUnique({
-        where: { id: data.serviceId },
-        include: { partner: true }
+    const order = await prisma.marketplaceOrder.create({
+        data: {
+            contractId,
+            unitId: data.unitId,
+            serviceId: data.serviceId,
+            status: "PENDING",
+            totalAmount: data.totalAmount,
+            commissionValue: data.commissionValue
+        }
     })
 
-    if (!service) throw new Error("Serviço não encontrado.")
-
-    // 2. Calcular comissão (Ex: 10% de 500,00 = 50,00)
-    const totalAmount = service.price
-    const commissionRate = service.partner.commissionRate
-    const commissionValue = totalAmount.mul(commissionRate).div(100)
-
-    // 3. Simular geração de Checkout Asaas
-    const asaasCheckoutUrl = `https://sandbox.asaas.com/checkout/${service.id}`
-
-    // 4. Executar Transação no Banco
-    const order = await prisma.$transaction(async (tx) => {
-        // a. Criar a Ordem no Marketplace
-        const orderRecord = await tx.marketplaceOrder.create({
-            data: {
-                contractId,
-                unitId: data.unitId,
-                serviceId: data.serviceId,
-                totalAmount,
-                commissionValue,
-                status: "PENDING" // Agora começa como PENDING até o Checkout
-            }
-        })
-
-        // b. Injetar comissão no Ledger do Condomínio (Receita do Prédio)
-        await tx.ledgerEntry.create({
-            data: {
-                contractId,
-                amount: commissionValue,
-                description: `Comissão Marketplace (PENDING): ${service.name} (${service.partner.name})`,
-                type: "CREDIT",
-                correlationId: `MKP-${orderRecord.id}`
-            }
-        })
-
-        return orderRecord
-    })
-
-    revalidatePath("/admin/transactions")
-    revalidatePath("/resident/dashboard")
-
-    return { ...order, checkoutUrl: asaasCheckoutUrl }
+    revalidatePath("/resident/marketplace")
+    return order
 }
 
-
 /**
- * Cadastrar um novo Parceiro (Admin).
+ * Seed básico de parceiros para o demo.
  */
-export async function createPartnerAction(data: {
-    name: string;
-    category: string;
-    commissionRate: number;
-}) {
+export async function seedMarketplaceDemoAction() {
     const { contractId } = await requireTenantContext()
 
     const partner = await prisma.partner.create({
         data: {
             contractId,
-            name: data.name,
-            category: data.category,
-            commissionRate: data.commissionRate,
-            status: "ACTIVE"
+            name: "Limp & Clean Serviços",
+            cnpj: "12.345.678/0001-90",
+            category: "LIMPEZA",
+            commissionRate: 10.00,
+            status: "ACTIVE",
+            services: {
+                create: [
+                    { name: "Limpeza Express (2h)", description: "Serviço rápido de faxina.", price: 80.00 },
+                    { name: "Faxina Completa", description: "Faxina pesada com produtos inclusos.", price: 250.00 }
+                ]
+            }
         }
     })
 
-    revalidatePath("/admin/partners")
     return partner
 }

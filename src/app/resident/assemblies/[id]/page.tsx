@@ -1,117 +1,118 @@
 import { requireTenantContext } from "@/core/tenant/tenant-context"
 import prisma from "@/infrastructure/db/prisma"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, Info } from "lucide-react"
-import { castVoteAction } from "@/application/features/assemblies/assemblies.action"
-import { redirect } from "next/navigation"
+import { Gavel, CheckCircle2, Circle, ArrowLeft, Send } from "lucide-react"
+import Link from "next/link"
+import { castVoteAction } from "@/application/features/governance/assemblies.action"
+import { revalidatePath } from "next/cache"
 
-export default async function AssemblyVotingPage({ params }: { params: Promise<{ id: string }> }) {
-    const { contractId, user } = await requireTenantContext()
+export default async function ResidentAssemblyDetailPage({ params }: { params: any }) {
     const { id } = await params
+    const { contractId, user } = await requireTenantContext()
 
-    // 1. Buscar a Assembleia e as Pautas (Polls)
     const assembly = await prisma.assembly.findUnique({
         where: { id, contractId },
         include: {
             polls: {
                 include: {
                     options: true,
-                    votes: {
-                        where: {
-                            unit: {
-                                userUnits: {
-                                    some: { userId: user.id }
-                                }
-                            }
-                        }
-                    }
+                    votes: true
                 }
             }
         }
     })
 
-    if (!assembly) redirect("/resident/assemblies")
+    if (!assembly) return <div className="p-10 text-center font-bold">Assembleia não encontrada.</div>
 
-    // 2. Identificar a unidade do morador (Simplificado em V1: Pega a primeira ativa)
-    const userUnits = await prisma.userUnit.findMany({
-        where: { contractId, userId: user.id },
+    // Buscar unidade primária do usuário para colher o voto
+    const userUnit = await prisma.userUnit.findFirst({
+        where: { userId: user.id, contractId },
         include: { unit: true }
     })
 
-    const activeUnit = userUnits[0]?.unit
-    if (!activeUnit) throw new Error("Você não possui uma unidade vinculada para votar.")
+    const unitId = userUnit?.unitId
 
     return (
-        <div className="space-y-6 pb-24 p-4 max-w-2xl mx-auto">
-            <div className="space-y-2">
-                <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-widest">{assembly.status}</Badge>
-                <h1 className="text-2xl font-bold tracking-tight">{assembly.title}</h1>
-                <p className="text-slate-500 text-sm">{assembly.description}</p>
+        <div className="p-6 space-y-8 animate-in fade-in duration-700">
+            {/* Back Header */}
+            <div className="flex items-center gap-4">
+                <Link href="/resident/assemblies" className="w-10 h-10 bg-[#f5f5f7] rounded-full flex items-center justify-center text-[#1d1d1f]">
+                    <ArrowLeft className="w-5 h-5" />
+                </Link>
+                <div className="space-y-0.5">
+                    <h2 className="text-xl font-black tracking-tighter text-[#1d1d1f] truncate max-w-[200px]">{assembly.title}</h2>
+                    <p className="text-[#86868b] text-[10px] font-black uppercase tracking-widest">{assembly.status === 'OPEN' ? 'Sessão em Andamento' : 'Sessão Encerrada'}</p>
+                </div>
             </div>
 
-            <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                    Seu voto será registrado para a <strong>Unidade {activeUnit.block || ''}{activeUnit.number}</strong>.
-                    Uma vez confirmado, ele não poderá ser alterado durante esta sessão.
+            {/* Introduction Card */}
+            <div className="bg-[#f5f5f7] rounded-[32px] p-8 space-y-3">
+                <p className="text-sm font-medium text-[#1d1d1f] leading-relaxed">
+                    {assembly.description || "Esta assembleia visa discutir pontos vitais para a valorização e convívio do nosso condomínio. Seu voto é fundamental."}
                 </p>
+                <div className="pt-4 flex items-center gap-4 border-t border-[#d2d2d7]">
+                    <div className="flex -space-x-2">
+                        {[1, 2, 3].map(i => <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-[#d2d2d7]" />)}
+                    </div>
+                    <span className="text-[10px] font-black text-[#86868b] uppercase tracking-widest">+ {assembly.polls.reduce((acc, p) => acc + p.votes.length, 0)} votos já registrados</span>
+                </div>
             </div>
 
-            <div className="space-y-8 mt-10">
-                {(assembly as any).polls.map((poll: any, index: number) => {
-                    const hasVoted = poll.votes.length > 0
-                    const selectedOptionId = poll.votes[0]?.optionId
+            {/* Polls Feed */}
+            <div className="space-y-6">
+                <h3 className="text-[11px] font-black text-[#1d1d1f] uppercase tracking-[0.2em] flex items-center gap-2">
+                    <Gavel className="w-3.5 h-3.5" /> Pauta para Votação
+                </h3>
+
+                {assembly.polls.map((poll) => {
+                    const hasVoted = poll.votes.some(v => v.unitId === unitId)
+                    const userVote = poll.votes.find(v => v.unitId === unitId)
 
                     return (
-                        <div key={poll.id} className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm">
-                                    {index + 1}
-                                </div>
-                                <h3 className="font-bold text-slate-800">{poll.question}</h3>
+                        <div key={poll.id} className="bg-white border border-[#d2d2d7] rounded-[32px] p-8 shadow-sm space-y-6">
+                            <h4 className="text-lg font-black text-[#1d1d1f] tracking-tight leading-tight">{poll.question}</h4>
+
+                            <div className="space-y-3">
+                                {poll.options.map((option) => (
+                                    <form key={option.id} action={async () => {
+                                        "use server"
+                                        if (!unitId) return
+                                        await castVoteAction(poll.id, option.id, unitId)
+                                        revalidatePath(`/resident/assemblies/${id}`)
+                                    }}>
+                                        <button
+                                            disabled={hasVoted || assembly.status !== 'OPEN'}
+                                            className={`w-full p-5 rounded-2xl flex items-center justify-between group transition-all border-2 ${userVote?.optionId === option.id
+                                                    ? 'bg-[#0066cc] border-[#0066cc] text-white shadow-lg shadow-[#0066cc]/20'
+                                                    : 'bg-white border-[#f5f5f7] text-[#1d1d1f] hover:border-[#0066cc]/20'
+                                                } ${hasVoted && userVote?.optionId !== option.id ? 'opacity-40 grayscale' : ''}`}
+                                        >
+                                            <span className="text-sm font-black tracking-tight">{option.text}</span>
+                                            {userVote?.optionId === option.id ? (
+                                                <CheckCircle2 className="w-5 h-5 fill-white text-[#0066cc]" />
+                                            ) : (
+                                                <Circle className="w-5 h-5 opacity-20 group-hover:opacity-100 transition-opacity" />
+                                            )}
+                                        </button>
+                                    </form>
+                                ))}
                             </div>
 
-                            <div className="grid grid-cols-1 gap-2 pl-11">
-                                {poll.options.map((option: any) => {
-                                    const isSelected = selectedOptionId === option.id
-
-                                    return (
-                                        <form key={option.id} action={async () => {
-                                            "use server"
-                                            await castVoteAction(poll.id, option.id, activeUnit.id)
-                                        }}>
-                                            <button
-                                                disabled={hasVoted || assembly.status !== 'OPEN'}
-                                                type="submit"
-                                                className={cn(
-                                                    "w-full text-left p-4 rounded-xl border-2 transition-all flex justify-between items-center group",
-                                                    isSelected ? "bg-primary border-primary text-white" :
-                                                        hasVoted ? "bg-slate-50 border-slate-100 opacity-60 text-slate-400" :
-                                                            "bg-white border-slate-100 hover:border-primary/40 text-slate-700 active:scale-[0.98]"
-                                                )}
-                                            >
-                                                <span className="font-semibold text-sm">{option.text}</span>
-                                                {isSelected && <CheckCircle2 className="w-5 h-5" />}
-                                                {!hasVoted && <div className="w-4 h-4 rounded-full border-2 border-slate-200 group-hover:border-primary/50" />}
-                                            </button>
-                                        </form>
-                                    )
-                                })}
-                            </div>
+                            {hasVoted && (
+                                <p className="text-[10px] text-center font-black text-[#86868b] uppercase tracking-widest pt-2">Voto confirmado pela Unidade {userUnit?.unit?.number}</p>
+                            )}
                         </div>
                     )
                 })}
             </div>
 
-            {assembly.status !== 'OPEN' && (
-                <div className="text-center py-5 text-slate-500 italic text-sm border-t mt-12">
-                    A votação desta assembleia está {assembly.status === 'CLOSED' ? 'ENCERRADA' : 'EM AGENDAMENTO'}.
-                </div>
-            )}
+            {/* Protocol Support */}
+            <div className="text-center py-6">
+                <p className="text-[11px] font-medium text-[#86868b] mb-4">Problemas técnicos com a votação? Acione o suporte.</p>
+                <button className="px-8 py-3 bg-[#f5f5f7] rounded-full text-[10px] font-black text-[#1d1d1f] uppercase tracking-widest hover:bg-[#1d1d1f] hover:text-white transition-all flex items-center gap-2 mx-auto">
+                    <Send className="w-3.5 h-3.5" /> Enviar Mensagem
+                </button>
+            </div>
         </div>
     )
-}
-
-function cn(...classes: any[]) {
-    return classes.filter(Boolean).join(' ')
 }
