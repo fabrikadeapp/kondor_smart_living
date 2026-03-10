@@ -1,4 +1,6 @@
 import { requireTenantContext, checkFeatureAccess } from "@/core/tenant/tenant-context"
+import Link from "next/link"
+
 import { getCSATAnalyticsAction } from "@/application/features/analytics/csat.action"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,12 +22,13 @@ export default async function AdminCSATAnalyticsPage() {
                 <p className="text-slate-500 max-w-sm mt-2 text-sm font-medium">
                     Seu plano atual não inclui o módulo de Satisfação Avançada (CSAT). Ative o plano de BI para monitorar a saúde do seu condomínio.
                 </p>
-                <button className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-full text-sm font-bold shadow-xl shadow-slate-200 hover:scale-105 transition-all">
+                <Link href="/admin/billing/upgrade" className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-full text-sm font-bold shadow-xl shadow-slate-200 hover:scale-105 transition-all">
                     Upgrade para Master
-                </button>
+                </Link>
             </div>
         )
     }
+
 
     // 2. Fetch Data
     const analytics = await getCSATAnalyticsAction()

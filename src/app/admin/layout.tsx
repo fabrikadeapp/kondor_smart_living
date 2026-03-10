@@ -1,6 +1,7 @@
 import { ReactNode } from "react"
 import Link from "next/link"
-import { Smartphone } from "lucide-react"
+import { Smartphone, Sparkles } from "lucide-react"
+
 import { TenantSwitcher } from "@/components/tenant-switcher"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -50,7 +51,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <Link href="/admin/assemblies" className="block font-medium p-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded transition-colors">
                         Governança & Assembleias
                     </Link>
+
+                    <div className="pt-4 mt-4 border-t border-slate-100">
+                        <Link href="/admin/billing/upgrade" className="flex items-center gap-2 p-2 px-3 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 font-bold border border-amber-200 rounded-xl hover:shadow-md transition-all group">
+                            <Sparkles className="w-4 h-4 text-amber-500 group-hover:animate-pulse" />
+                            Upgrade PRO
+                        </Link>
+                    </div>
                 </nav>
+
             </aside>
 
             {/* Main Content */}
